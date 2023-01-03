@@ -1,19 +1,44 @@
-# See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.238.0/containers/rust/.devcontainer/base.Dockerfile
+FROM ubuntu:latest
 
-# [Choice] Debian OS version (use bullseye on local arm64/Apple Silicon): buster, bullseye
-ARG VARIANT="buster"
-FROM mcr.microsoft.com/vscode/devcontainers/rust:0-${VARIANT}
+SHELL ["bin/bash", "-c"]
 
 #debugger support
 RUN apt-get update && \ 
     apt-get install -y --no-install-recommends \
+    build-essential \
+    libudev-dev \
+    pkg-config \
     git gdb-multiarch \
     openocd \
-    minicom
+    minicom \
+    curl \
+    ca-certificates
 
-#usbip support (allow to connect to a usb in a windows host)
-RUN apt-get update && apt-get -y --no-install-recommends install usbip
+ARG USERNAME=pico-dev
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
 
-RUN rustup self update && rustup update stable
-RUN rustup target add thumbv6m-none-eabi
+# Create the user
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
 
+#Set the default user. Omit if you want to keep the default as root.
+
+USER $USERNAME
+
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y \
+    && echo 'source $HOME/.cargo/env' >> $HOME/.bashrc \
+    && source $HOME/.cargo/env \
+    && rustup self update \
+    && rustup update stable \
+    && rustup target add thumbv6m-none-eabi \
+    && cargo install elf2uf2-rs \
+    && cargo install probe-run
+
+ENV PATH="$HOME/.cargo/bin:${PATH}"
+
+CMD ["sleep","infinity"]
