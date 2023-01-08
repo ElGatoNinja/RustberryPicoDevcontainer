@@ -26,8 +26,13 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
-#Set the default user. Omit if you want to keep the default as root.
+# Add picoprobe hardware to 
 
+RUN echo "# Raspberry Pi Picoprobe\nATTRS{idVendor}==\"2e8a\", ATTRS{idProduct}==\"0004\", MODE:=\"0666\"" 
+    # >> /etc/udev/rules.d/99-openocd.rules && \
+    # udevadm trigger
+
+#Set the default user
 USER $USERNAME
 
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y \
@@ -40,5 +45,7 @@ RUN curl https://sh.rustup.rs -sSf | bash -s -- -y \
     && cargo install probe-run
 
 ENV PATH="$HOME/.cargo/bin:${PATH}"
+
+COPY .cargo/config /workspaces/.cargo/config
 
 CMD ["sleep","infinity"]
